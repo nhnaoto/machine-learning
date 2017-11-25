@@ -65,7 +65,25 @@ for (i,pipe) in enumerate(pipe_lines):
 
 # ->0.831
 pipe = pipe_gb
-    
+
+# グリッドサーチ
+from sklearn.model_selection import GridSearchCV
+param_grid_gbc = {'est__n_estimators':[50,100],'est__subsample':[0.8, 1.0]}
+param = param_grid_gbc
+
+best_estimator = []
+print('----------------------------------------------------------------------------------------------')
+print('探索空間:%s' % param)
+gs = GridSearchCV(estimator=pipe, param_grid=param, scoring='accuracy', cv=3)
+gs = gs.fit(X, y.as_matrix().ravel())
+best_estimator.append(gs.best_estimator_) 
+print('Best Score %.6f\n' % gs.best_score_) 
+print('Best Model: %s' % gs.best_estimator_)
+
+pipe_gb_best = Pipeline([('scl',StandardScaler()),('est',GradientBoostingClassifier(random_state=1, subsample=0.8, n_estimators=100))])
+pipe = pipe_gb
+
+
 #fit
 pipe.fit(X, y.as_matrix().ravel())
 
@@ -102,7 +120,7 @@ B["Survived"] = pred
 B = df.loc[:, ['PassengerId', 'Survived']];
 B.to_csv("./output/prediction.csv",index=False)
 
-# -> score 0.78468
+# -> 0.78468
 
 
 # In[ ]:
