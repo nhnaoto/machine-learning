@@ -81,7 +81,7 @@ print('Best Score %.6f\n' % gs.best_score_)
 print('Best Model: %s' % gs.best_estimator_)
 
 pipe_gb_best = Pipeline([('scl',StandardScaler()),('est',GradientBoostingClassifier(random_state=1, subsample=0.8, n_estimators=100))])
-pipe = pipe_gb
+pipe = pipe_gb_best
 
 
 #fit
