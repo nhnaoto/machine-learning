@@ -11,13 +11,19 @@ df = pd.read_csv("./input/train.csv", header=0)
 
 # X : 説明変数列を取り出す
 # y : 目的変数列を取り出す
-X = df.loc[:, ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare']];
+X = df.loc[:, ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare','Embarked']];
 y = df.loc[:, ['Survived']]
 #print(X.dtypes)
 
+X['Title'] = df.Name.str.extract('([A-Za-z]+)\.')
+X.Title.replace(['Mlle', 'Major', 'Lady', 'Sir', 'Jonkheer', 'Countess', 'Capt', 'Mme', 'Don', 'Dona'], ['other', 'other', 'other', 'other', 'other', 'other', 'other', 'other', 'other', 'other'],inplace=True)
+#print(X.Title.value_counts())
+
 # X : one hot encodeing
-ohe_columns = ['Sex']
+ohe_columns = ['Sex','Embarked','Title']
 X = pd.get_dummies(X, columns=ohe_columns)
+X  = X.drop(['Title_other'], axis=1)
+
 #print(X.head(5))
 
 # X :欠損値補完
@@ -27,37 +33,62 @@ from sklearn.preprocessing import Imputer
 imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
 imp.fit(X)
 X = pd.DataFrame(imp.transform(X), columns=X.columns.values)
-
 #print(X.count())
 
 # パイプライン作成 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-pipe = Pipeline([('scl', StandardScaler()), ('est', GradientBoostingClassifier())])
+# pipe = Pipeline([('scl', StandardScaler()), ('est', GradientBoostingClassifier())])
+
+pipe_knn = Pipeline([('scl',StandardScaler()),('est',KNeighborsClassifier())])
+pipe_logistic = Pipeline([('scl',StandardScaler()),('est',LogisticRegression(random_state=1))])
+pipe_rf = Pipeline([('scl',StandardScaler()),('est',RandomForestClassifier(random_state=1))])
+pipe_gb = Pipeline([('scl',StandardScaler()),('est',GradientBoostingClassifier(random_state=1))])
+pipe_mlp = Pipeline([('scl',StandardScaler()),('est',MLPClassifier(hidden_layer_sizes=(100,3), max_iter=500, random_state=1))])
+
+pipe_names = ['KNN','Logistic','RandomForest','GradientBoosting','MLP']
+pipe_lines = [pipe_knn, pipe_logistic, pipe_rf, pipe_gb, pipe_mlp]
 
 # 交差検証
 from sklearn.model_selection import cross_val_score
-cv_results = cross_val_score(pipe, X, y.as_matrix().ravel(), cv=10, scoring='accuracy')
-print(cv_results)
+for (i,pipe) in enumerate(pipe_lines):
+    scores = cross_val_score(pipe, X, y.as_matrix().ravel(), cv=10, scoring='accuracy')
+    print('%s: %.3f'%(pipe_names[i],scores.mean()))
 
-# fit
+# ->0.831
+pipe = pipe_gb
+    
+#fit
 pipe.fit(X, y.as_matrix().ravel())
+
+
+# In[ ]:
 
 # ここから予測データ
 # 予測データの読み込み
 df = pd.read_csv("./input/test.csv", header=0)
 
 # A ： 説明変数列を取り出す
-A = df.loc[:, ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare']];
+A = df.loc[:, ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare','Embarked']];
 #print(A.dtypes)
 
+A['Title']=df.Name.str.extract('([A-Za-z]+)\.')
+A.Title.replace(['Mlle', 'Major', 'Lady', 'Sir', 'Jonkheer', 'Countess', 'Capt', 'Mme', 'Don', 'Dona'], ['other', 'other', 'other', 'other', 'other', 'other', 'other', 'other', 'other', 'other'],inplace=True)
+#print(A.Title.value_counts())
+
 # A : one hot encoding
-ohe_columns = ['Sex']
+ohe_columns = ['Sex','Embarked','Title']
 A = pd.get_dummies(A, columns=ohe_columns)
+A  = A.drop(['Title_other'], axis=1)
+
 
 # A : の欠損値補完
 A = pd.DataFrame(imp.transform(A), columns=A.columns.values)
@@ -71,7 +102,7 @@ B["Survived"] = pred
 B = df.loc[:, ['PassengerId', 'Survived']];
 B.to_csv("./output/prediction.csv",index=False)
 
-# -> score 0.77511
+# -> score 0.78468
 
 
 # In[ ]:
